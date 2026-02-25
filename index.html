@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Phân tích NG khí lần đầu</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  </head>
+  <body>
+    <main class="container">
+      <header>
+        <h1>Nhập dữ liệu NG khí lần đầu</h1>
+        <p>
+          Các ô <strong>Line</strong>, <strong>Dòng sản phẩm</strong>, <strong>Loại lỗi</strong>, <strong>Nguyên nhân</strong> là danh sách chọn sẵn.
+        </p>
+      </header>
+
+      <section class="card">
+        <h2>1) Nhập dữ liệu</h2>
+        <form id="ngForm" class="grid">
+          <label>
+            Ngày
+            <input type="date" id="date" required />
+          </label>
+          <label>
+            Line
+            <select id="line" required>
+              <option value="">-- Chọn line --</option>
+            </select>
+          </label>
+          <label>
+            Dòng sản phẩm
+            <select id="product" required>
+              <option value="">-- Chọn mã dòng sản phẩm --</option>
+            </select>
+          </label>
+          <label>
+            Loại lỗi
+            <select id="defectType" required>
+              <option value="">-- Chọn loại lỗi --</option>
+            </select>
+          </label>
+          <label>
+            Nguyên nhân
+            <select id="reason" required>
+              <option value="">-- Chọn nguyên nhân --</option>
+            </select>
+          </label>
+          <label>
+            Số lượng lỗi
+            <input type="number" id="qty" min="1" step="1" value="1" required />
+          </label>
+          <button type="submit">Thêm bản ghi</button>
+          <button id="clearBtn" type="button" class="secondary">Xóa toàn bộ dữ liệu</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>2) Biểu đồ phân tích</h2>
+        <div class="toolbar">
+          <label>
+            Năm
+            <select id="yearFilter">
+              <option value="ALL">Tất cả năm</option>
+            </select>
+          </label>
+          <label>
+            Tháng
+            <select id="monthFilter">
+              <option value="ALL">Tất cả tháng</option>
+              <option value="01">Tháng 01</option>
+              <option value="02">Tháng 02</option>
+              <option value="03">Tháng 03</option>
+              <option value="04">Tháng 04</option>
+              <option value="05">Tháng 05</option>
+              <option value="06">Tháng 06</option>
+              <option value="07">Tháng 07</option>
+              <option value="08">Tháng 08</option>
+              <option value="09">Tháng 09</option>
+              <option value="10">Tháng 10</option>
+              <option value="11">Tháng 11</option>
+              <option value="12">Tháng 12</option>
+            </select>
+          </label>
+          <label>
+            Line
+            <select id="lineFilter">
+              <option value="ALL">Tất cả line</option>
+            </select>
+          </label>
+          <button id="resetFilterBtn" type="button" class="secondary">Reset bộ lọc</button>
+          <button id="exportExcelBtn" type="button">Xuất Excel</button>
+        </div>
+        <p id="filterHint" class="hint"></p>
+        <div class="charts">
+          <article>
+            <h3>Top mã theo số lỗi</h3>
+            <canvas id="productChart"></canvas>
+          </article>
+          <article>
+            <h3>Phân bổ theo loại lỗi</h3>
+            <canvas id="defectChart"></canvas>
+          </article>
+          <article>
+            <h3>Xu hướng NG theo ngày</h3>
+            <canvas id="trendChart"></canvas>
+          </article>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>3) Nhật ký dữ liệu đã nhập</h2>
+        <div class="table-wrap">
+          <table id="recordsTable">
+            <thead>
+              <tr>
+                <th>Ngày</th>
+                <th>Line</th>
+                <th>Dòng sản phẩm</th>
+                <th>Loại lỗi</th>
+                <th>Nguyên nhân</th>
+                <th>Số lượng lỗi</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
