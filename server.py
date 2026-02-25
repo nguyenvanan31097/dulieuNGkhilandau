@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json
 import os
+import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
@@ -8,6 +9,7 @@ from urllib.parse import urlparse
 ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
 DATA_FILE = DATA_DIR / "records.json"
+DELETE_PASSWORD = os.environ.get("DELETE_PASSWORD", "123456")
 
 
 def ensure_data_file():
@@ -16,12 +18,30 @@ def ensure_data_file():
         DATA_FILE.write_text("[]", encoding="utf-8")
 
 
+def normalize_records(records):
+    normalized = []
+    changed = False
+    for item in records:
+        if not isinstance(item, dict):
+            changed = True
+            continue
+        record = dict(item)
+        if not record.get("id"):
+            record["id"] = uuid.uuid4().hex
+            changed = True
+        normalized.append(record)
+    return normalized, changed
+
+
 def load_records():
     ensure_data_file()
     try:
         data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
         if isinstance(data, list):
-            return data
+            normalized, changed = normalize_records(data)
+            if changed:
+                save_records(normalized)
+            return normalized
     except json.JSONDecodeError:
         pass
     return []
@@ -92,12 +112,13 @@ class AppHandler(BaseHTTPRequestHandler):
             return
 
         record = {
+            "id": uuid.uuid4().hex,
             "date": str(payload.get("date", "")).strip(),
             "line": str(payload.get("line", "")).strip(),
             "product": str(payload.get("product", "")).strip(),
             "defectType": str(payload.get("defectType", "")).strip(),
             "reason": str(payload.get("reason", "")).strip(),
-            "qty": int(payload.get("qty", 0))
+            "qty": int(payload.get("qty", 0)),
         }
 
         if not all([record["date"], record["line"], record["product"], record["defectType"], record["reason"]]):
@@ -114,12 +135,26 @@ class AppHandler(BaseHTTPRequestHandler):
 
     def do_DELETE(self):
         parsed = urlparse(self.path)
-        if parsed.path != "/api/records":
-            self.send_error(404, "Not found")
+        path = parsed.path
+
+        if path.startswith("/api/records/"):
+            password = self.headers.get("X-Delete-Pass", "")
+            if password != DELETE_PASSWORD:
+                self._send_json(403, {"error": "Invalid password"})
+                return
+
+            record_id = path.replace("/api/records/", "", 1)
+            records = load_records()
+            kept = [r for r in records if r.get("id") != record_id]
+            if len(kept) == len(records):
+                self._send_json(404, {"error": "Record not found"})
+                return
+
+            save_records(kept)
+            self._send_json(200, {"ok": True})
             return
 
-        save_records([])
-        self._send_json(200, {"ok": True})
+        self.send_error(404, "Not found")
 
 
 if __name__ == "__main__":

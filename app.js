@@ -238,7 +238,6 @@ const records = [];
 
 const form = document.getElementById("ngForm");
 const tableBody = document.querySelector("#recordsTable tbody");
-const clearBtn = document.getElementById("clearBtn");
 const exportExcelBtn = document.getElementById("exportExcelBtn");
 const yearFilter = document.getElementById("yearFilter");
 const monthFilter = document.getElementById("monthFilter");
@@ -289,10 +288,18 @@ async function addRecordToServer(row) {
   records.push(saved);
 }
 
-async function clearRecordsOnServer() {
-  const response = await fetch(API_RECORDS_URL, { method: "DELETE" });
+async function deleteRecordOnServer(recordId, password) {
+  const response = await fetch(`${API_RECORDS_URL}/${encodeURIComponent(recordId)}`, {
+    method: "DELETE",
+    headers: { "X-Delete-Pass": password }
+  });
+
+  if (response.status === 403) throw new Error("Sai mật khẩu xóa dữ liệu.");
+  if (response.status === 404) throw new Error("Không tìm thấy bản ghi để xóa.");
   if (!response.ok) throw new Error("Không xóa được dữ liệu trên server.");
-  records.length = 0;
+
+  const idx = records.findIndex((r) => r.id === recordId);
+  if (idx >= 0) records.splice(idx, 1);
 }
 
 function getFilteredRecords() {
@@ -317,6 +324,7 @@ function renderTable() {
         <td>${r.defectType}</td>
         <td>${r.reason}</td>
         <td>${r.qty}</td>
+        <td><button class="danger delete-row-btn" data-id="${r.id}">Xóa</button></td>
       </tr>`
     )
     .join("");
@@ -493,17 +501,6 @@ form.addEventListener("submit", async (event) => {
   }
 });
 
-clearBtn.addEventListener("click", async () => {
-  try {
-    await clearRecordsOnServer();
-    updateYearFilterOptions();
-    updateLineFilterOptions();
-    renderTable();
-    buildCharts();
-  } catch (error) {
-    alert(error.message);
-  }
-});
 
 yearFilter.addEventListener("change", buildCharts);
 monthFilter.addEventListener("change", buildCharts);
@@ -515,6 +512,27 @@ resetFilterBtn.addEventListener("click", () => {
   buildCharts();
 });
 exportExcelBtn.addEventListener("click", exportToExcel);
+
+tableBody.addEventListener("click", async (event) => {
+  const button = event.target.closest(".delete-row-btn");
+  if (!button) return;
+
+  const recordId = button.dataset.id;
+  if (!recordId) return;
+
+  const password = prompt("Nhập mật khẩu để xóa bản ghi:");
+  if (!password) return;
+
+  try {
+    await deleteRecordOnServer(recordId, password);
+    updateYearFilterOptions();
+    updateLineFilterOptions();
+    renderTable();
+    buildCharts();
+  } catch (error) {
+    alert(error.message);
+  }
+});
 
 async function initApp() {
   try {
