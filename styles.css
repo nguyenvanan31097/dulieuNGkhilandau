@@ -108,3 +108,14 @@ td {
 th {
   background: #f8fafc;
 }
+
+
+button.danger {
+  background: #dc2626;
+  height: 32px;
+  padding: 6px 10px;
+}
+
+#recordsTable button {
+  font-size: 12px;
+}

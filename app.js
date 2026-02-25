@@ -233,12 +233,11 @@ const LINE_OPTIONS = [
   "RS Series"
 ];
 
-const STORAGE_KEY = "ng-khi-first-pass-records";
-const records = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+const API_RECORDS_URL = "/api/records";
+const records = [];
 
 const form = document.getElementById("ngForm");
 const tableBody = document.querySelector("#recordsTable tbody");
-const clearBtn = document.getElementById("clearBtn");
 const exportExcelBtn = document.getElementById("exportExcelBtn");
 const yearFilter = document.getElementById("yearFilter");
 const monthFilter = document.getElementById("monthFilter");
@@ -270,8 +269,37 @@ fillSelect(productSelect, unique(MASTER_CODES));
 fillSelect(defectSelect, DEFECT_OPTIONS);
 fillSelect(reasonSelect, REASON_OPTIONS);
 
-function save() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+async function fetchRecordsFromServer() {
+  const response = await fetch(API_RECORDS_URL);
+  if (!response.ok) throw new Error("Không tải được dữ liệu từ server.");
+  const data = await response.json();
+  records.length = 0;
+  records.push(...(Array.isArray(data) ? data : []));
+}
+
+async function addRecordToServer(row) {
+  const response = await fetch(API_RECORDS_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(row)
+  });
+  if (!response.ok) throw new Error("Không lưu được dữ liệu lên server.");
+  const saved = await response.json();
+  records.push(saved);
+}
+
+async function deleteRecordOnServer(recordId, password) {
+  const response = await fetch(`${API_RECORDS_URL}/${encodeURIComponent(recordId)}`, {
+    method: "DELETE",
+    headers: { "X-Delete-Pass": password }
+  });
+
+  if (response.status === 403) throw new Error("Sai mật khẩu xóa dữ liệu.");
+  if (response.status === 404) throw new Error("Không tìm thấy bản ghi để xóa.");
+  if (!response.ok) throw new Error("Không xóa được dữ liệu trên server.");
+
+  const idx = records.findIndex((r) => r.id === recordId);
+  if (idx >= 0) records.splice(idx, 1);
 }
 
 function getFilteredRecords() {
@@ -296,6 +324,7 @@ function renderTable() {
         <td>${r.defectType}</td>
         <td>${r.reason}</td>
         <td>${r.qty}</td>
+        <td><button class="danger delete-row-btn" data-id="${r.id}">Xóa</button></td>
       </tr>`
     )
     .join("");
@@ -448,7 +477,7 @@ function exportToExcel() {
   XLSX.writeFile(workbook, `ng-khi-first-pass-${timestamp}.xlsx`);
 }
 
-form.addEventListener("submit", (event) => {
+form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const row = {
     date: document.getElementById("date").value,
@@ -459,24 +488,19 @@ form.addEventListener("submit", (event) => {
     qty: Number(document.getElementById("qty").value)
   };
 
-  records.push(row);
-  save();
-  updateYearFilterOptions();
-  updateLineFilterOptions();
-  renderTable();
-  buildCharts();
-  form.reset();
-  document.getElementById("qty").value = 1;
+  try {
+    await addRecordToServer(row);
+    updateYearFilterOptions();
+    updateLineFilterOptions();
+    renderTable();
+    buildCharts();
+    form.reset();
+    document.getElementById("qty").value = 1;
+  } catch (error) {
+    alert(error.message);
+  }
 });
 
-clearBtn.addEventListener("click", () => {
-  records.length = 0;
-  save();
-  updateYearFilterOptions();
-  updateLineFilterOptions();
-  renderTable();
-  buildCharts();
-});
 
 yearFilter.addEventListener("change", buildCharts);
 monthFilter.addEventListener("change", buildCharts);
@@ -489,7 +513,37 @@ resetFilterBtn.addEventListener("click", () => {
 });
 exportExcelBtn.addEventListener("click", exportToExcel);
 
-updateYearFilterOptions();
-updateLineFilterOptions();
-renderTable();
-buildCharts();
+tableBody.addEventListener("click", async (event) => {
+  const button = event.target.closest(".delete-row-btn");
+  if (!button) return;
+
+  const recordId = button.dataset.id;
+  if (!recordId) return;
+
+  const password = prompt("Nhập mật khẩu để xóa bản ghi:");
+  if (!password) return;
+
+  try {
+    await deleteRecordOnServer(recordId, password);
+    updateYearFilterOptions();
+    updateLineFilterOptions();
+    renderTable();
+    buildCharts();
+  } catch (error) {
+    alert(error.message);
+  }
+});
+
+async function initApp() {
+  try {
+    await fetchRecordsFromServer();
+    updateYearFilterOptions();
+    updateLineFilterOptions();
+    renderTable();
+    buildCharts();
+  } catch (error) {
+    filterHint.textContent = "Không kết nối được server. Vui lòng chạy server.py";
+  }
+}
+
+initApp();
