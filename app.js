@@ -233,7 +233,7 @@ const LINE_OPTIONS = [
   "RS Series"
 ];
 
-const API_RECORDS_URL = "/api/records";
+const API_RECORDS_URL = "api/records";
 const records = [];
 
 const form = document.getElementById("ngForm");
@@ -271,7 +271,7 @@ fillSelect(reasonSelect, REASON_OPTIONS);
 
 async function fetchRecordsFromServer() {
   const response = await fetch(API_RECORDS_URL);
-  if (!response.ok) throw new Error("Không tải được dữ liệu từ server.");
+  if (!response.ok) throw new Error(`Không tải được dữ liệu từ server (HTTP ${response.status}).`);
   const data = await response.json();
   records.length = 0;
   records.push(...(Array.isArray(data) ? data : []));
@@ -283,7 +283,7 @@ async function addRecordToServer(row) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(row)
   });
-  if (!response.ok) throw new Error("Không lưu được dữ liệu lên server.");
+  if (!response.ok) throw new Error(`Không lưu được dữ liệu lên server (HTTP ${response.status}).`);
   const saved = await response.json();
   records.push(saved);
 }
@@ -296,7 +296,7 @@ async function deleteRecordOnServer(recordId, password) {
 
   if (response.status === 403) throw new Error("Sai mật khẩu xóa dữ liệu.");
   if (response.status === 404) throw new Error("Không tìm thấy bản ghi để xóa.");
-  if (!response.ok) throw new Error("Không xóa được dữ liệu trên server.");
+  if (!response.ok) throw new Error(`Không xóa được dữ liệu trên server (HTTP ${response.status}).`);
 
   const idx = records.findIndex((r) => r.id === recordId);
   if (idx >= 0) records.splice(idx, 1);
@@ -542,7 +542,7 @@ async function initApp() {
     renderTable();
     buildCharts();
   } catch (error) {
-    filterHint.textContent = "Không kết nối được server. Vui lòng chạy server.py";
+    filterHint.textContent = "Không kết nối được server/API. Kiểm tra URL deploy và endpoint api/records.";
   }
 }
 
